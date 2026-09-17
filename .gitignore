@@ -1,2 +1,10 @@
-
 .venv/
+
+__pycache__/
+*.pyc
+
+*.pkl
+
+ml-core/artifacts/
+
+.env
