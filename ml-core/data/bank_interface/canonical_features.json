@@ -1,0 +1,71 @@
+{
+  "schema_name": "Canonical Gig-Worker Alternative Credit Schema",
+  "schema_version": "3.0.0",
+  "features": [
+    {
+      "name": "monthly_inflow_avg",
+      "type": "float",
+      "description": "Average monthly total credits/inflows (INR)"
+    },
+    {
+      "name": "monthly_outflow_avg",
+      "type": "float",
+      "description": "Average monthly total debits/outflows (INR)"
+    },
+    {
+      "name": "inflow_volatility",
+      "type": "float",
+      "description": "Coefficient of variation of monthly income (std / mean)"
+    },
+    {
+      "name": "inflow_outflow_ratio",
+      "type": "float",
+      "description": "Ratio of total inflow to total outflow"
+    },
+    {
+      "name": "active_days_ratio",
+      "type": "float",
+      "description": "Fraction of days in observation period with income earnings [0.0 - 1.0]"
+    },
+    {
+      "name": "utility_punctuality_score",
+      "type": "float",
+      "description": "Fraction of electricity/rent/utility bills paid on time [0.0 - 1.0]"
+    },
+    {
+      "name": "recharge_regularity_index",
+      "type": "float",
+      "description": "Regularity index of mobile data recharges [0.0 - 1.0]"
+    },
+    {
+      "name": "avg_transaction_value",
+      "type": "float",
+      "description": "Average value per credit transaction (INR)"
+    },
+    {
+      "name": "peak_daily_inflow",
+      "type": "float",
+      "description": "Maximum single-day total credit earnings (INR)"
+    },
+    {
+      "name": "emergency_drawdown_count",
+      "type": "int",
+      "description": "Frequency of immediate balance drains right after payout"
+    },
+    {
+      "name": "zero_balance_days",
+      "type": "int",
+      "description": "Number of days where account balance dropped to near zero"
+    },
+    {
+      "name": "platform_diversity",
+      "type": "int",
+      "description": "Count of distinct gig platforms sending payouts"
+    },
+    {
+      "name": "tenure_months",
+      "type": "int",
+      "description": "History duration in months"
+    }
+  ]
+}

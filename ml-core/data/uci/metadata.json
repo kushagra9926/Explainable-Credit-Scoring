@@ -1,0 +1,10 @@
+{
+  "dataset_name": "UCI Default of Credit Card Clients",
+  "source": "https://archive.ics.uci.edu/dataset/350/default+of+credit+card+clients",
+  "download_date": "2026-10-06",
+  "total_records": 30000,
+  "num_features": 24,
+  "target_column": "default_label",
+  "default_rate": 0.2212,
+  "is_synthetic": false
+}

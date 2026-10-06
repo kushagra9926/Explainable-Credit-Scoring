@@ -1,0 +1,21 @@
+{
+  "bank_name": "Bank Alpha (Retail Banking Division)",
+  "mapping_version": "1.0",
+  "feature_mapping": {
+    "upi_credit_total_avg": "monthly_inflow_avg",
+    "upi_debit_total_avg": "monthly_outflow_avg",
+    "income_std_ratio": "inflow_volatility",
+    "credit_debit_ratio": "inflow_outflow_ratio",
+    "active_earning_days_pct": "active_days_ratio",
+    "utility_on_time_ratio": "utility_punctuality_score",
+    "recharge_consistency_idx": "recharge_regularity_index",
+    "mean_tx_amt": "avg_transaction_value",
+    "max_single_day_credit": "peak_daily_inflow",
+    "rapid_drain_events": "emergency_drawdown_count",
+    "days_with_zero_bal": "zero_balance_days",
+    "num_earning_channels": "platform_diversity",
+    "account_age_months": "tenure_months",
+    "cust_gender": "gender",
+    "cust_city_tier": "city_tier"
+  }
+}

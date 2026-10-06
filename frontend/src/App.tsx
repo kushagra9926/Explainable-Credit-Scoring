@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { SingleScorerTab } from './components/SingleScorerTab';
+import { BankAdapterTab } from './components/BankAdapterTab';
 import { BatchScoringTab } from './components/BatchScoringTab';
 import { ModelCardTab } from './components/ModelCardTab';
 import { SimulatorTab } from './components/SimulatorTab';
@@ -160,6 +161,7 @@ export function App() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-6 py-8">
         {activeTab === 'single' && <SingleScorerTab onScoreRequest={handleScoreSingle} />}
+        {activeTab === 'bank-adapter' && <BankAdapterTab apiConnected={apiConnected} />}
         {activeTab === 'batch' && <BatchScoringTab onBatchScore={handleBatchScore} />}
         {activeTab === 'model-card' && <ModelCardTab modelCard={modelCard} />}
         {activeTab === 'simulator' && <SimulatorTab onSimulate={handleSimulate} />}

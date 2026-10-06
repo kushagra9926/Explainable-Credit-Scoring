@@ -1,5 +1,5 @@
 import React from 'react';
-import { ShieldCheck, UserCheck, Layers, Cpu, Activity } from 'lucide-react';
+import { ShieldCheck, UserCheck, Layers, Cpu, Activity, Building2 } from 'lucide-react';
 
 interface NavbarProps {
   activeTab: string;
@@ -10,6 +10,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, apiConnected }) => {
   const tabs = [
     { id: 'single', label: 'Single Applicant Scorer', icon: UserCheck },
+    { id: 'bank-adapter', label: 'Bank Feature Adapter', icon: Building2 },
     { id: 'batch', label: 'Bank Batch Scoring', icon: Layers },
     { id: 'model-card', label: 'Model Card & Fairness Hub', icon: ShieldCheck },
     { id: 'simulator', label: 'AA UPI Simulator', icon: Cpu },

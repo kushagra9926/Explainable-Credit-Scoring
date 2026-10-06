@@ -154,22 +154,22 @@ class UPIGigWorkerSimulator:
 
         # Ground truth default determination based on latent physics + realistic noise
         risk_score_latent = (
-            - 2.2 * active_days_ratio
-            - 1.8 * utility_punctuality
-            - 1.2 * recharge_regularity_idx
-            + 2.0 * inflow_volatility
-            + 0.03 * zero_balance_days
-            + 0.25 * emergency_drawdowns
-            + 1.2 * (1.0 if latent_shock else 0.0)
-            - 1.5 * latent_discipline
-            + 1.2
+            - 2.5 * active_days_ratio
+            - 2.0 * utility_punctuality
+            - 1.5 * recharge_regularity_idx
+            + 2.8 * inflow_volatility
+            + 0.15 * zero_balance_days
+            + 0.40 * emergency_drawdowns
+            + 1.5 * (1.0 if latent_shock else 0.0)
+            - 2.0 * latent_discipline
+            + 2.8
         )
         
         # Logistic sigmoid probability
         prob_default = 1.0 / (1.0 + np.exp(-risk_score_latent))
-        # Add slight non-linear noise so baseline models cannot get 100% AUC (reflecting real-world partial observability)
-        noisy_prob = np.clip(prob_default + self.rng.normal(0, 0.06), 0.01, 0.99)
-        default_label = int(noisy_prob > 0.50)
+        # Add slight non-linear noise so baseline models cannot get 100% AUC
+        noisy_prob = np.clip(prob_default + self.rng.normal(0, 0.04), 0.01, 0.99)
+        default_label = int(noisy_prob > 0.40)
 
         feature_vector = {
             "applicant_id": applicant_id,

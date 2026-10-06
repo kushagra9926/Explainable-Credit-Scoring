@@ -10,12 +10,9 @@ import numpy as np
 from typing import Dict, Any, List
 try:
     from app.config import MODEL_BUNDLE_PATH, FALLBACK_BUNDLE_PATH
-except ImportError:
-    try:
-        from inference-service.app.config import MODEL_BUNDLE_PATH, FALLBACK_BUNDLE_PATH
-    except ImportError:
-        MODEL_BUNDLE_PATH = "inference-service/model_artifacts/model_bundle.joblib"
-        FALLBACK_BUNDLE_PATH = "ml-core/models/model_bundle.joblib"
+except Exception:
+    MODEL_BUNDLE_PATH = "inference-service/model_artifacts/model_bundle.joblib"
+    FALLBACK_BUNDLE_PATH = "ml-core/models/model_bundle.joblib"
 
 class ScoringService:
     def __init__(self):
@@ -39,11 +36,11 @@ class ScoringService:
                 self.optimal_threshold = float(self.bundle.get("optimal_threshold", 0.50))
                 self.feature_names = self.bundle.get("feature_names", [])
                 self.model_card = self.bundle.get("model_card", {})
-                print(f"✅ Loaded model bundle successfully from {path}")
+                print(f"[OK] Loaded model bundle successfully from {path}")
                 return
             except Exception as e:
-                print(f"⚠️ Failed loading model bundle: {e}")
-        print("⚠️ Model bundle not found yet. Running on dynamic model mode.")
+                print(f"[WARN] Failed loading model bundle: {e}")
+        print("[WARN] Model bundle not found yet. Running on dynamic model mode.")
 
     def score_single(self, input_features: Dict[str, Any]) -> Dict[str, Any]:
         if self.model is None or self.preprocessor is None:
@@ -59,6 +56,9 @@ class ScoringService:
         drop_cols = ["applicant_id", "gender", "city_tier", "is_synthetic", "default_label"]
         feat_df = df_input.drop(columns=[c for c in drop_cols if c in df_input.columns])
 
+        if "platform_type" not in feat_df.columns:
+            feat_df["platform_type"] = "delivery"
+
         if self.model is not None and self.preprocessor is not None:
             proc_df = self.preprocessor.transform(feat_df)
             prob_default = float(self.model.predict_proba(proc_df)[0, 1])
@@ -72,11 +72,14 @@ class ScoringService:
             risk = 0.5 + 1.5 * vol - 1.2 * punc - 1.0 * act + 0.2 * draws
             prob_default = float(1.0 / (1.0 + np.exp(-risk)))
 
-        # Convert to standard Credit Score (300 to 900 scale)
-        credit_score = int(round(300 + 600 * (1.0 - prob_default)))
+        # Project-Defined Creditworthiness Score (0 to 100 scale)
+        creditworthiness_score = int(round(max(0.0, min(100.0, (1.0 - prob_default) * 100.0))))
+        
+        # Standard Credit Score (300 to 900 scale)
+        credit_score = int(round(max(300, min(900, 300 + 600 * (1.0 - prob_default)))))
 
         # Risk Tier and Decision
-        if prob_default < 0.25:
+        if prob_default < 0.20:
             risk_tier = "LOW_RISK"
             decision = "APPROVED"
         elif prob_default < self.optimal_threshold:
@@ -108,6 +111,7 @@ class ScoringService:
         return {
             "applicant_id": applicant_id,
             "credit_score": credit_score,
+            "creditworthiness_score": creditworthiness_score,
             "default_probability": round(prob_default, 4),
             "decision": decision,
             "risk_tier": risk_tier,

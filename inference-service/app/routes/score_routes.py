@@ -76,6 +76,39 @@ def simulate_upi_applicant(platform_type: str = "delivery", gender: str = "Femal
         "credit_decision": score_res
     }
 
+class BankScoreRequest(BaseModel):
+    preset_name: Optional[str] = Field(default="bank_alpha", description="bank_alpha or bank_beta")
+    bank_raw_data: Dict[str, Any]
+    mapping_config: Optional[Dict[str, str]] = None
+
+@router.post("/bank-score")
+def score_bank_payload(payload: BankScoreRequest):
+    """
+    Bank-Deployable Feature Adapter Endpoint.
+    Translates bank raw schema into canonical credit features before scoring.
+    """
+    from src.data.bank_adapter import BankFeatureAdapter
+
+    try:
+        if payload.mapping_config:
+            adapter = BankFeatureAdapter(mapping_config=payload.mapping_config)
+        else:
+            preset = payload.preset_name or "bank_alpha"
+            adapter = BankFeatureAdapter.from_preset(preset)
+
+        adapted_features = adapter.adapt_record(payload.bank_raw_data)
+        service = get_scoring_service()
+        scoring_res = service.score_single(adapted_features)
+
+        return {
+            "preset_used": payload.preset_name,
+            "bank_raw_input": payload.bank_raw_data,
+            "adapted_canonical_features": adapted_features,
+            "credit_decision": scoring_res
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to adapt bank payload: {str(e)}")
+
 @router.get("/model-info")
 def get_model_card():
     card_path = "ml-core/artifacts/model_card.json"
