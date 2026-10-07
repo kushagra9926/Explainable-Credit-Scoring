@@ -78,21 +78,29 @@ class ScoringService:
         # Standard Credit Score (300 to 900 scale)
         credit_score = int(round(max(300, min(900, 300 + 600 * (1.0 - prob_default)))))
 
-        # Risk Tier and Decision
-        if prob_default < 0.20:
-            risk_tier = "LOW_RISK"
-            decision = "APPROVED"
-        elif prob_default < self.optimal_threshold:
-            risk_tier = "MEDIUM_RISK"
-            decision = "APPROVED"
-        elif prob_default < (self.optimal_threshold + 0.15):
-            risk_tier = "MEDIUM_HIGH_RISK"
+        # 5-Tier Risk Classification & Underwriting Decision
+        if credit_score >= 800:
+            risk_tier = "TIER_1_MINIMAL_RISK"
+            risk_label = "Excellent (Minimal Risk)"
+            decision = "AUTO_APPROVE"
+        elif credit_score >= 700:
+            risk_tier = "TIER_2_LOW_RISK"
+            risk_label = "Good (Low Risk)"
+            decision = "AUTO_APPROVE"
+        elif credit_score >= 600:
+            risk_tier = "TIER_3_MODERATE_RISK"
+            risk_label = "Acceptable (Moderate Risk)"
+            decision = "CONDITIONAL_APPROVE"
+        elif credit_score >= 500:
+            risk_tier = "TIER_4_HIGH_RISK"
+            risk_label = "Elevated (High Risk)"
             decision = "MANUAL_REVIEW"
         else:
-            risk_tier = "HIGH_RISK"
+            risk_tier = "TIER_5_SEVERE_RISK"
+            risk_label = "Critical (Severe Default Risk)"
             decision = "REJECTED"
 
-        # Local SHAP / Feature Attributions
+        # Local SHAP / Feature Attributions (Layer 1)
         if self.explainer is not None and self.model is not None:
             proc_df = self.preprocessor.transform(feat_df)
             shap_info = self.explainer.explain_single(proc_df)
@@ -104,9 +112,54 @@ class ScoringService:
                     "active_days_ratio": -0.12 if input_features.get("active_days_ratio", 0.7) > 0.6 else 0.15,
                     "emergency_drawdown_count": 0.14 if input_features.get("emergency_drawdown_count", 0) > 1 else -0.05
                 },
-                "top_risk_drivers": ["Inflow Volatility (+0.22)", "Emergency Drawdowns (+0.14)"],
-                "top_protective_drivers": ["Utility Punctuality (-0.15)", "Active Days Ratio (-0.12)"]
+                "top_risk_drivers": ["inflow_volatility (+0.22)", "emergency_drawdown_count (+0.14)"],
+                "top_protective_drivers": ["utility_punctuality_score (-0.15)", "active_days_ratio (-0.12)"]
             }
+
+        # Layer 2: Natural Language Underwriting Narrative
+        vol = input_features.get("inflow_volatility", 0.3)
+        punc = input_features.get("utility_punctuality_score", 0.8)
+        act = input_features.get("active_days_ratio", 0.75)
+        inflow = input_features.get("monthly_inflow_avg", 25000.0)
+
+        if decision in ["AUTO_APPROVE", "APPROVED"]:
+            narrative = (
+                f"Application APPROVED. The applicant demonstrates robust cash flow stability with a "
+                f"monthly inflow of ₹{inflow:,.0f} and active earnings on {act * 100:.0f}% of days. "
+                f"Payment discipline is strong with a {punc * 100:.0f}% utility punctuality score. "
+                f"Income volatility ({vol:.2f}) is well within acceptable limits."
+            )
+        elif decision == "CONDITIONAL_APPROVE":
+            narrative = (
+                f"Application CONDITIONALLY APPROVED. The applicant has consistent working days ({act * 100:.0f}%), "
+                f"but exhibits moderate income volatility ({vol:.2f}). A reduced loan tenure or 25% capped principal "
+                f"is recommended to match monthly net margins."
+            )
+        elif decision == "MANUAL_REVIEW":
+            narrative = (
+                f"Application flagged for MANUAL UNDERWRITING REVIEW. While average monthly inflow (₹{inflow:,.0f}) "
+                f"is adequate, the applicant shows high cash-flow volatility ({vol:.2f}) or lower bill payment punctuality ({punc * 100:.0f}%). "
+                f"Human underwriter review of recent 3-month bank statements is required."
+            )
+        else:
+            narrative = (
+                f"Application REJECTED due to elevated default risk (P(Default) = {prob_default * 100:.1f}%). "
+                f"Primary risk drivers include high income volatility ({vol:.2f}), low active earning days ({act * 100:.0f}%), "
+                f"or multiple zero-balance liquidity events."
+            )
+
+        # Layer 3: Actionable Score Improvement Prescriptions (+50 pts path)
+        actionable_tips = []
+        if punc < 0.90:
+            actionable_tips.append("Pay utility and mobile bills on or before due dates for 3 consecutive months (+25 pts)")
+        if act < 0.85:
+            actionable_tips.append("Increase platform activity to 24+ days per month to build income consistency (+15 pts)")
+        if input_features.get("zero_balance_days", 0) > 0 or input_features.get("emergency_drawdown_count", 0) > 0:
+            actionable_tips.append("Maintain a minimum running balance above ₹500 to eliminate liquidity distress flags (+20 pts)")
+        if input_features.get("loan_to_inflow_ratio", 0) > 1.5:
+            actionable_tips.append("Reduce requested loan amount or increase tenure to lower monthly EMI burden (+15 pts)")
+        if not actionable_tips:
+            actionable_tips.append("Maintain current pristine payment habits to keep prime tier rating!")
 
         return {
             "applicant_id": applicant_id,
@@ -115,8 +168,11 @@ class ScoringService:
             "default_probability": round(prob_default, 4),
             "decision": decision,
             "risk_tier": risk_tier,
+            "risk_label": risk_label,
             "optimal_threshold_used": round(self.optimal_threshold, 4),
-            "shap_explanation": shap_info,
+            "explanation_layer_1_shap": shap_info,
+            "explanation_layer_2_narrative": narrative,
+            "explanation_layer_3_actionable_tips": actionable_tips,
             "timestamp": pd.Timestamp.now().isoformat()
         }
 

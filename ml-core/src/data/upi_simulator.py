@@ -23,7 +23,8 @@ class UPIGigWorkerSimulator:
         platform_type: str = "delivery",
         num_months: int = 6,
         protected_gender: str = "Female",
-        protected_city_tier: str = "Tier-2"
+        protected_city_tier: str = "Tier-2",
+        include_raw_tx: bool = True
     ) -> Dict:
         """
         Simulates raw daily transaction feed for a single applicant over num_months.
@@ -40,6 +41,8 @@ class UPIGigWorkerSimulator:
         }
 
         prof = profiles.get(platform_type.lower(), profiles["delivery"])
+        freq_multiplier = float(self.rng.uniform(0.3, 2.5))
+        effective_freq = max(0.2, prof["freq_per_day"] * freq_multiplier)
 
         # Latent borrower traits
         latent_discipline = self.rng.beta(2, 2)  # [0, 1] - higher means better financial discipline
@@ -55,6 +58,7 @@ class UPIGigWorkerSimulator:
         recharge_regularity = 0
         recharge_total = 0
         emergency_drawdowns = 0
+        total_tx_count = 0
 
         total_inflow = 0.0
         total_outflow = 0.0
@@ -72,20 +76,21 @@ class UPIGigWorkerSimulator:
             is_active = self.rng.rand() < (0.8 + 0.15 * latent_discipline)
             if is_active:
                 active_days += 1
-                n_tx = max(1, int(self.rng.poisson(prof["freq_per_day"])))
+                n_tx = max(1, int(self.rng.poisson(effective_freq)))
+                total_tx_count += n_tx
                 daily_earning = max(0.0, self.rng.normal(prof["base_daily"], prof["base_daily"] * prof["volatility"]) * shock_factor)
                 
-                # Split daily earnings across transactions
-                tx_amounts = self.rng.dirichlet(np.ones(n_tx)) * daily_earning
-                for amt in tx_amounts:
-                    transactions.append({
-                        "transaction_id": f"TX_{applicant_id}_{d}_{len(transactions)}",
-                        "timestamp": f"{date_str}T{self.rng.randint(8,21):02d}:{self.rng.randint(0,59):02d}:00Z",
-                        "amount": round(float(amt), 2),
-                        "type": "CREDIT",
-                        "category": "PLATFORM_PAYOUT",
-                        "counterparty": f"UPI_{platform_type.upper()}_HUB"
-                    })
+                if include_raw_tx:
+                    tx_amounts = self.rng.dirichlet(np.ones(n_tx)) * daily_earning
+                    for amt in tx_amounts:
+                        transactions.append({
+                            "transaction_id": f"TX_{applicant_id}_{d}_{len(transactions)}",
+                            "timestamp": f"{date_str}T{self.rng.randint(8,21):02d}:{self.rng.randint(0,59):02d}:00Z",
+                            "amount": round(float(amt), 2),
+                            "type": "CREDIT",
+                            "category": "PLATFORM_PAYOUT",
+                            "counterparty": f"UPI_{platform_type.upper()}_HUB"
+                        })
                 
                 balance += daily_earning
                 curr_month_inflow += daily_earning
@@ -95,20 +100,20 @@ class UPIGigWorkerSimulator:
             if day_of_month in [5, 20]:
                 utility_total += 1
                 bill_amount = self.rng.uniform(400, 1500)
-                # Discipline governs on-time payment vs delay/miss
                 paid_on_time = self.rng.rand() < (0.5 + 0.48 * latent_discipline)
                 if paid_on_time and balance >= bill_amount:
                     utility_on_time += 1
                     balance -= bill_amount
                     total_outflow += bill_amount
-                    transactions.append({
-                        "transaction_id": f"TX_{applicant_id}_{d}_UTIL",
-                        "timestamp": f"{date_str}T10:00:00Z",
-                        "amount": round(float(bill_amount), 2),
-                        "type": "DEBIT",
-                        "category": "UTILITY",
-                        "counterparty": "BESCOM_UTILITY_UPI"
-                    })
+                    if include_raw_tx:
+                        transactions.append({
+                            "transaction_id": f"TX_{applicant_id}_{d}_UTIL",
+                            "timestamp": f"{date_str}T10:00:00Z",
+                            "amount": round(float(bill_amount), 2),
+                            "type": "DEBIT",
+                            "category": "UTILITY",
+                            "counterparty": "BESCOM_UTILITY_UPI"
+                        })
 
             # Mobile Data Recharge every 28 days
             if day_of_month == 28:
@@ -118,14 +123,15 @@ class UPIGigWorkerSimulator:
                     recharge_regularity += 1
                     balance -= recharge_amt
                     total_outflow += recharge_amt
-                    transactions.append({
-                        "transaction_id": f"TX_{applicant_id}_{d}_RCHG",
-                        "timestamp": f"{date_str}T14:30:00Z",
-                        "amount": recharge_amt,
-                        "type": "DEBIT",
-                        "category": "RECHARGE",
-                        "counterparty": "JIO_UPI"
-                    })
+                    if include_raw_tx:
+                        transactions.append({
+                            "transaction_id": f"TX_{applicant_id}_{d}_RCHG",
+                            "timestamp": f"{date_str}T14:30:00Z",
+                            "amount": recharge_amt,
+                            "type": "DEBIT",
+                            "category": "RECHARGE",
+                            "counterparty": "JIO_UPI"
+                        })
 
             # Daily living outflow
             living_exp = max(100.0, self.rng.normal(250, 50))
@@ -167,7 +173,6 @@ class UPIGigWorkerSimulator:
         
         # Logistic sigmoid probability
         prob_default = 1.0 / (1.0 + np.exp(-risk_score_latent))
-        # Add slight non-linear noise so baseline models cannot get 100% AUC
         noisy_prob = np.clip(prob_default + self.rng.normal(0, 0.04), 0.01, 0.99)
         default_label = int(noisy_prob > 0.40)
 
@@ -181,7 +186,7 @@ class UPIGigWorkerSimulator:
             "active_days_ratio": active_days_ratio,
             "utility_punctuality_score": utility_punctuality,
             "recharge_regularity_index": recharge_regularity_idx,
-            "avg_transaction_value": round(total_inflow / max(1, len(transactions)), 2),
+            "avg_transaction_value": round(total_inflow / max(1, total_tx_count), 2),
             "peak_daily_inflow": round(float(np.max(monthly_inflows_np) / 20.0), 2) if len(monthly_inflows_np) else 500.0,
             "emergency_drawdown_count": emergency_drawdowns,
             "zero_balance_days": zero_balance_days,
@@ -199,27 +204,35 @@ class UPIGigWorkerSimulator:
             "features": feature_vector
         }
 
-    def generate_dataset(self, num_samples: int = 2500) -> pd.DataFrame:
+    def generate_dataset(
+        self,
+        num_samples: int = 2500,
+        min_months: int = 3,
+        max_months: int = 60
+    ) -> pd.DataFrame:
         """
-        Generates a synthetic UPI dataset of size num_samples.
+        Generates a synthetic UPI dataset of size num_samples with varying account tenure (3 to 60 months).
         """
         platforms = ["delivery", "ride", "freelance", "vendor"]
         genders = ["Female", "Male"]
         city_tiers = ["Tier-1", "Tier-2", "Tier-3"]
+        possible_tenures = [3, 6, 9, 12, 18, 24, 36, 48, 60]
 
         records = []
         for i in range(num_samples):
-            app_id = f"UPI_GIG_{i+1001:05d}"
+            app_id = f"UPI_GIG_{i+100001:06d}"
             plat = str(self.rng.choice(platforms, p=[0.40, 0.30, 0.15, 0.15]))
             gender = str(self.rng.choice(genders, p=[0.45, 0.55]))
             city = str(self.rng.choice(city_tiers, p=[0.30, 0.45, 0.25]))
+            tenure = int(self.rng.choice(possible_tenures))
 
             res = self.generate_applicant_transactions(
                 applicant_id=app_id,
                 platform_type=plat,
-                num_months=6,
+                num_months=tenure,
                 protected_gender=gender,
-                protected_city_tier=city
+                protected_city_tier=city,
+                include_raw_tx=False
             )
             records.append(res["features"])
 
@@ -232,3 +245,4 @@ if __name__ == "__main__":
     print(f"Generated synthetic UPI dataset of shape: {df.shape}")
     print(f"Default rate: {df['default_label'].mean():.2%}")
     print(df.head(2))
+

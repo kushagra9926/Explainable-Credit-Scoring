@@ -1,0 +1,23 @@
+{
+  "applicant_id": "UPI_AA_STATEMENT_101",
+  "account_type": "SAVINGS",
+  "consent_id": "CONSENT_AA_99812",
+  "period_months": 12,
+  "features": {
+    "monthly_inflow_avg": 34000.0,
+    "monthly_outflow_avg": 21000.0,
+    "inflow_volatility": 0.22,
+    "active_days_ratio": 0.85,
+    "utility_punctuality_score": 0.92,
+    "recharge_regularity_index": 0.90,
+    "emergency_drawdown_count": 0,
+    "zero_balance_days": 1,
+    "tenure_months": 12,
+    "gender": "Female",
+    "city_tier": "Tier-1",
+    "requested_amount": 50000.0,
+    "requested_tenure_months": 12,
+    "loan_purpose": "EQUIPMENT_UPGRADE",
+    "existing_monthly_emi": 1500.0
+  }
+}

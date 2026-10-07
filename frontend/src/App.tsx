@@ -40,25 +40,14 @@ export function App() {
   const handleScoreSingle = async (input: ApplicantInput): Promise<ScoringResponse> => {
     if (apiConnected) {
       try {
-        const res = await fetch(`${API_BASE_URL}/score`, {
+        const res = await fetch(`${API_BASE_URL}/score-merchant`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(input),
         });
         if (res.ok) {
           const data = await res.json();
-          return {
-            applicant_id: data.applicant_id,
-            credit_score: data.credit_score,
-            default_probability: data.default_probability,
-            decision: data.decision,
-            risk_tier: data.risk_tier,
-            shap_explanation: {
-              shap_attributions: data.shap_explanations || {},
-              top_risk_drivers: data.top_negative_factors || [],
-              top_protective_drivers: data.top_positive_factors || []
-            }
-          };
+          return data;
         }
       } catch (e) {
         console.error("API error, falling back to local evaluation:", e);
@@ -70,43 +59,75 @@ export function App() {
     const punc = input.utility_punctuality_score;
     const act = input.active_days_ratio;
     const draws = input.emergency_drawdown_count;
+    const inflow = input.monthly_inflow_avg || 25000;
 
     const risk = 0.5 + 2.0 * vol - 1.8 * punc - 1.5 * act + 0.25 * draws - 0.5;
     const prob_default = Math.max(0.01, Math.min(0.99, 1.0 / (1.0 + Math.exp(-risk))));
     const credit_score = Math.round(300 + 600 * (1.0 - prob_default));
 
-    let decision: "APPROVED" | "MANUAL_REVIEW" | "REJECTED" = "APPROVED";
-    let risk_tier: "LOW_RISK" | "MEDIUM_RISK" | "MEDIUM_HIGH_RISK" | "HIGH_RISK" = "LOW_RISK";
+    let decision = "APPROVED";
+    let risk_tier = "TIER_2_LOW_RISK";
+    let risk_label = "Good (Low Risk)";
 
-    if (prob_default < 0.20) {
-      risk_tier = "LOW_RISK";
-      decision = "APPROVED";
-    } else if (prob_default < 0.45) {
-      risk_tier = "MEDIUM_RISK";
-      decision = "APPROVED";
-    } else if (prob_default < 0.60) {
-      risk_tier = "MEDIUM_HIGH_RISK";
+    if (credit_score >= 800) {
+      risk_tier = "TIER_1_MINIMAL_RISK";
+      risk_label = "Excellent (Minimal Risk)";
+      decision = "AUTO_APPROVE";
+    } else if (credit_score >= 700) {
+      risk_tier = "TIER_2_LOW_RISK";
+      risk_label = "Good (Low Risk)";
+      decision = "AUTO_APPROVE";
+    } else if (credit_score >= 600) {
+      risk_tier = "TIER_3_MODERATE_RISK";
+      risk_label = "Acceptable (Moderate Risk)";
+      decision = "CONDITIONAL_APPROVE";
+    } else if (credit_score >= 500) {
+      risk_tier = "TIER_4_HIGH_RISK";
+      risk_label = "Elevated (High Risk)";
       decision = "MANUAL_REVIEW";
     } else {
-      risk_tier = "HIGH_RISK";
+      risk_tier = "TIER_5_SEVERE_RISK";
+      risk_label = "Critical (Severe Default Risk)";
       decision = "REJECTED";
     }
+
+    const requestedAmt = input.requested_amount || 30000;
+    const requestedTenure = input.requested_tenure_months || 6;
+    const maxSafeLoan = (inflow * 0.35) * requestedTenure;
 
     return {
       applicant_id: input.applicant_id,
       credit_score,
+      creditworthiness_score: Math.round((1.0 - prob_default) * 100),
       default_probability: prob_default,
       decision,
       risk_tier,
-      shap_explanation: {
+      risk_label,
+      explanation_layer_1_shap: {
         shap_attributions: {
           utility_punctuality_score: punc > 0.7 ? -0.16 : 0.18,
           inflow_volatility: vol > 0.35 ? 0.22 : -0.10,
           active_days_ratio: act > 0.6 ? -0.14 : 0.15,
           emergency_drawdown_count: draws > 1 ? 0.16 : -0.04
         },
-        top_risk_drivers: vol > 0.35 ? [`Inflow Volatility (+${(vol*0.4).toFixed(3)} risk)`] : [`Emergency Drawdowns (${draws} events)`],
-        top_protective_drivers: punc > 0.7 ? [`Utility Punctuality (${(punc*100).toFixed(0)}% on-time)`] : [`Active Days Ratio (${(act*100).toFixed(0)}%)`]
+        top_risk_drivers: vol > 0.35 ? [`inflow_volatility (+${(vol * 0.4).toFixed(3)})`] : [`emergency_drawdown_count (${draws} events)`],
+        top_protective_drivers: punc > 0.7 ? [`utility_punctuality_score (${(punc * 100).toFixed(0)}% on-time)`] : [`active_days_ratio (${(act * 100).toFixed(0)}%)`]
+      },
+      explanation_layer_2_narrative: decision.includes("APPROVE") 
+        ? `Application ${decision}. Candidate demonstrates steady monthly turnover of ₹${inflow.toLocaleString()} and active earnings on ${(act * 100).toFixed(0)}% of days.`
+        : `Application ${decision}. High volatility (${vol.toFixed(2)}) or lower payment punctuality (${(punc * 100).toFixed(0)}%) indicates potential cash flow distress.`,
+      explanation_layer_3_actionable_tips: [
+        "Pay utility and mobile bills on or before due dates for 3 consecutive months (+25 pts)",
+        "Maintain minimum running balance above ₹500 to avoid cash distress flags (+20 pts)",
+        "Reduce requested loan principal or extend tenure to lower monthly EMI burden (+15 pts)"
+      ],
+      underwriting_summary: {
+        requested_amount: requestedAmt,
+        requested_tenure_months: requestedTenure,
+        loan_purpose: input.loan_purpose || "INVENTORY_PURCHASE",
+        estimated_monthly_emi: Math.round(requestedAmt / requestedTenure * 1.05),
+        max_recommended_loan_amount: Math.round(maxSafeLoan),
+        approved_amount: Math.round(Math.min(requestedAmt, maxSafeLoan))
       }
     };
   };

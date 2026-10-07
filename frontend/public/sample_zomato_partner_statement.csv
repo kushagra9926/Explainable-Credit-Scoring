@@ -1,0 +1,2 @@
+applicant_id,monthly_inflow_avg,monthly_outflow_avg,inflow_volatility,active_days_ratio,utility_punctuality_score,recharge_regularity_index,emergency_drawdown_count,zero_balance_days,tenure_months,gender,city_tier,requested_amount,requested_tenure_months,loan_purpose,existing_monthly_emi
+UPI_ZOMATO_991,28500,17200,0.15,0.92,0.98,0.95,0,0,18,Male,Tier-2,40000,6,INVENTORY_PURCHASE,0

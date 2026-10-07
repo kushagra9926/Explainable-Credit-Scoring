@@ -19,21 +19,67 @@ def get_scoring_service():
     from app.services.scoring_service import ScoringService
     return ScoringService()
 
-@router.post("/score", response_model=ScoringResult)
+class MerchantLoanRequest(BaseModel):
+    applicant_id: Optional[str] = "MERCHANT_001"
+    platform_type: Optional[str] = "vendor"
+    monthly_inflow_avg: float = Field(default=25000.0)
+    monthly_outflow_avg: float = Field(default=18000.0)
+    inflow_volatility: float = Field(default=0.25)
+    active_days_ratio: float = Field(default=0.80)
+    utility_punctuality_score: float = Field(default=0.90)
+    recharge_regularity_index: float = Field(default=0.85)
+    zero_balance_days: int = Field(default=0)
+    emergency_drawdown_count: int = Field(default=0)
+    tenure_months: int = Field(default=12)
+    gender: Optional[str] = "Female"
+    city_tier: Optional[str] = "Tier-2"
+    
+    # Questionnaire Inputs
+    requested_amount: float = Field(default=30000.0)
+    requested_tenure_months: int = Field(default=6)
+    loan_purpose: str = Field(default="INVENTORY_PURCHASE")
+    existing_monthly_emi: float = Field(default=0.0)
+
+@router.post("/score")
 def score_applicant(payload: CreditFeatureVector):
     service = get_scoring_service()
     res = service.score_single(payload.model_dump())
+    return res
+
+@router.post("/score-merchant")
+def score_merchant(payload: MerchantLoanRequest):
+    service = get_scoring_service()
+    data = payload.model_dump()
     
-    return ScoringResult(
-        applicant_id=res["applicant_id"],
-        credit_score=res["credit_score"],
-        default_probability=res["default_probability"],
-        decision=res["decision"],
-        risk_tier=res["risk_tier"],
-        shap_explanations=res["shap_explanation"]["shap_attributions"],
-        top_positive_factors=res["shap_explanation"]["top_protective_drivers"],
-        top_negative_factors=res["shap_explanation"]["top_risk_drivers"]
-    )
+    # Calculate loan interaction metrics
+    loan_amount = data["requested_amount"]
+    inflow = max(1.0, data["monthly_inflow_avg"])
+    margin = max(1.0, data["monthly_inflow_avg"] - data["monthly_outflow_avg"])
+    
+    # Simple EMI calculation at ~18% interest p.a.
+    r = 0.18 / 12
+    n = max(1, data["requested_tenure_months"])
+    est_emi = (loan_amount * r * ((1 + r)**n)) / (((1 + r)**n) - 1)
+    
+    data["loan_to_inflow_ratio"] = round(loan_amount / inflow, 4)
+    data["emi_to_margin_ratio"] = round((est_emi + data["existing_monthly_emi"]) / margin, 4)
+    
+    res = service.score_single(data)
+    
+    # Max recommended safe loan amount based on 35% margin EMI coverage
+    max_safe_emi = margin * 0.35
+    max_safe_loan = max_safe_emi * n
+    
+    res["underwriting_summary"] = {
+        "requested_amount": loan_amount,
+        "requested_tenure_months": n,
+        "loan_purpose": data["loan_purpose"],
+        "estimated_monthly_emi": round(est_emi, 2),
+        "max_recommended_loan_amount": round(max_safe_loan, 2),
+        "approved_amount": round(min(loan_amount, max_safe_loan), 2) if res["decision"] in ["AUTO_APPROVE", "APPROVED", "CONDITIONAL_APPROVE"] else 0.0
+    }
+    
+    return res
 
 @router.post("/batch-score")
 def score_batch(items: List[CreditFeatureVector]):
