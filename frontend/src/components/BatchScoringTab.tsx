@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { Upload, FileSpreadsheet, Filter } from 'lucide-react';
+import { FileSpreadsheet } from 'lucide-react';
 import type { ScoringResponse } from '../types';
+import { decisionLabel, tierLabel, tone, Spinner } from './common/ui';
 
-interface Props {
-  onBatchScore: (items: any[]) => Promise<ScoringResponse[]>;
-}
+interface Props { onBatchScore: (items: any[]) => Promise<ScoringResponse[]>; }
 
 export const BatchScoringTab: React.FC<Props> = ({ onBatchScore }) => {
   const [results, setResults] = useState<ScoringResponse[]>([]);
-  const [filterDecision, setFilterDecision] = useState<string>('ALL');
+  const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(false);
 
   const generateSampleData = () => [
@@ -19,136 +18,63 @@ export const BatchScoringTab: React.FC<Props> = ({ onBatchScore }) => {
     { applicant_id: 'BATCH_005', monthly_inflow_avg: 22000, inflow_volatility: 0.35, active_days_ratio: 0.75, utility_punctuality_score: 0.82, emergency_drawdown_count: 1, zero_balance_days: 2, gender: 'Female', city_tier: 'Tier-2' }
   ];
 
-  const handleRunSampleBatch = async () => {
+  const run = async () => {
     setLoading(true);
-    try {
-      const sample = generateSampleData();
-      const res = await onBatchScore(sample);
-      setResults(res);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    try { setResults(await onBatchScore(generateSampleData())); } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
-  const filteredResults = results.filter(r => filterDecision === 'ALL' || r.decision === filterDecision);
-
-  const approvedCount = results.filter(r => r.decision === 'APPROVED').length;
-  const reviewCount = results.filter(r => r.decision === 'MANUAL_REVIEW').length;
-  const rejectedCount = results.filter(r => r.decision === 'REJECTED').length;
+  const count = (d: string) => results.filter(r => r.decision === d).length;
+  const rows = results.filter(r => filter === 'ALL' || r.decision === filter);
+  const pct = (n: number) => `${Math.round((n / results.length) * 100)}% of batch`;
+  const opts = [['ALL', 'All', results.length], ['APPROVED', 'Approved', count('APPROVED')], ['MANUAL_REVIEW', 'Review', count('MANUAL_REVIEW')], ['REJECTED', 'Rejected', count('REJECTED')]] as const;
 
   return (
-    <div className="space-y-8">
-      {/* Upload Dropzone & Action Box */}
-      <div className="glass-card p-8 text-center space-y-4">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto">
-          <Upload className="w-8 h-8 text-indigo-400" />
+    <>
+      <section className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-h">
+          <div><h2>Applicant file</h2><p>Sample file with 5 applicants in Account Aggregator format</p></div>
+          <button className="btn" onClick={run} disabled={loading}>{loading ? <Spinner /> : <FileSpreadsheet size={15} />}{loading ? 'Scoring' : results.length ? 'Score again' : 'Score sample batch'}</button>
         </div>
-        <div>
-          <h3 className="text-base font-bold text-white">Bank Applicant Batch CSV Ingestion</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-            Upload Account Aggregator CSV files or trigger a sample bank loan application batch score.
-          </p>
-        </div>
+      </section>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-          <button
-            onClick={handleRunSampleBatch}
-            disabled={loading}
-            className="gradient-btn px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-lg flex items-center space-x-2"
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            <span>{loading ? 'Scoring Batch...' : 'Run Sample Bank CSV (5 Applicants)'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Overview Summary */}
-      {results.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <div className="glass-card p-4 text-center">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Total Scored</span>
-            <div className="text-2xl font-black text-white mt-1">{results.length}</div>
-          </div>
-          <div className="glass-card p-4 text-center border-l-2 border-l-emerald-500">
-            <span className="text-[10px] font-bold text-emerald-400 uppercase">Approved</span>
-            <div className="text-2xl font-black text-emerald-400 mt-1">{approvedCount} ({((approvedCount/results.length)*100).toFixed(0)}%)</div>
-          </div>
-          <div className="glass-card p-4 text-center border-l-2 border-l-amber-500">
-            <span className="text-[10px] font-bold text-amber-400 uppercase">Manual Review</span>
-            <div className="text-2xl font-black text-amber-400 mt-1">{reviewCount} ({((reviewCount/results.length)*100).toFixed(0)}%)</div>
-          </div>
-          <div className="glass-card p-4 text-center border-l-2 border-l-rose-500">
-            <span className="text-[10px] font-bold text-rose-400 uppercase">Rejected</span>
-            <div className="text-2xl font-black text-rose-400 mt-1">{rejectedCount} ({((rejectedCount/results.length)*100).toFixed(0)}%)</div>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Results Table */}
-      {results.length > 0 && (
-        <div className="glass-card p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <h4 className="text-sm font-bold text-white flex items-center space-x-2">
-              <span>Scored Loan Applications Table</span>
-            </h4>
-
-            {/* Filter buttons */}
-            <div className="flex items-center space-x-2 bg-slate-900 p-1 rounded-xl border border-white/5 text-xs">
-              <Filter className="w-3.5 h-3.5 text-slate-400 ml-2" />
-              {['ALL', 'APPROVED', 'MANUAL_REVIEW', 'REJECTED'].map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => setFilterDecision(opt)}
-                  className={`px-3 py-1 rounded-lg font-semibold transition-all ${
-                    filterDecision === opt ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
+      {results.length === 0 ? (
+        <section className="panel empty"><b>Nothing scored yet</b>Score the sample batch to see approvals, referrals and rejections side by side.</section>
+      ) : (
+        <>
+          <section className="panel strip">
+            <div><span>Applicants scored</span><b>{results.length}</b><small>In this batch</small></div>
+            <div><span>Approved</span><b className="t-ok">{count('APPROVED')}</b><small>{pct(count('APPROVED'))}</small></div>
+            <div><span>Manual review</span><b className="t-warn">{count('MANUAL_REVIEW')}</b><small>{pct(count('MANUAL_REVIEW'))}</small></div>
+            <div><span>Rejected</span><b className="t-bad">{count('REJECTED')}</b><small>{pct(count('REJECTED'))}</small></div>
+          </section>
+          <section className="panel">
+            <div className="panel-h">
+              <h3>Decisions</h3>
+              <div className="seg" role="group" aria-label="Filter by decision">
+                {opts.map(([k, l, n]) => <button key={k} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}<em>{n}</em></button>)}
+              </div>
             </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left text-slate-300">
-              <thead className="text-[11px] uppercase bg-slate-900/60 text-slate-400 border-b border-white/10 font-mono">
-                <tr>
-                  <th className="py-3 px-4">Applicant ID</th>
-                  <th className="py-3 px-4">Credit Score</th>
-                  <th className="py-3 px-4">Default Prob</th>
-                  <th className="py-3 px-4">Decision</th>
-                  <th className="py-3 px-4">Risk Tier</th>
-                  <th className="py-3 px-4">Top SHAP Risk Driver</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5 font-mono">
-                {filteredResults.map((r) => (
-                  <tr key={r.applicant_id} className="hover:bg-slate-900/40">
-                    <td className="py-3 px-4 font-bold text-white">{r.applicant_id}</td>
-                    <td className="py-3 px-4 font-bold text-slate-200">{r.credit_score}</td>
-                    <td className="py-3 px-4">{((r.default_probability || 0)*100).toFixed(1)}%</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${
-                        r.decision === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                        r.decision === 'REJECTED' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
-                        'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      }`}>
-                        {r.decision}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-slate-400">{r.risk_tier}</td>
-                    <td className="py-3 px-4 text-slate-400 text-[11px] truncate max-w-[200px]">
-                      {r.shap_explanation?.top_risk_drivers?.[0] || 'Inflow Volatility (+0.21)'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            <div className="tbl-wrap">
+              <table>
+                <thead><tr><th>Applicant</th><th className="num">Score</th><th className="num">Default probability</th><th>Decision</th><th>Risk tier</th><th>Main risk driver</th></tr></thead>
+                <tbody>
+                  {rows.map(r => (
+                    <tr key={r.applicant_id}>
+                      <td><b>{r.applicant_id}</b></td>
+                      <td className="num"><b>{r.credit_score}</b></td>
+                      <td className="num">{((r.default_probability || 0) * 100).toFixed(1)}%</td>
+                      <td><span className={`decision t-${tone(r.decision)}`} style={{ fontSize: 13.5 }}><span className="dot" />{decisionLabel(r.decision)}</span></td>
+                      <td>{tierLabel(r.risk_tier)}</td>
+                      <td style={{ color: 'var(--ink-2)' }}>{r.shap_explanation?.top_risk_drivers?.[0] || '—'}</td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-3)' }}>No applicants with this decision.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </>
       )}
-    </div>
+    </>
   );
 };
