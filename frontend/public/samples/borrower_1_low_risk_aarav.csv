@@ -1,0 +1,2 @@
+applicant_id,platform_type,monthly_inflow_avg,monthly_outflow_avg,inflow_volatility,inflow_outflow_ratio,active_days_ratio,utility_punctuality_score,recharge_regularity_index,avg_transaction_value,peak_daily_inflow,emergency_drawdown_count,zero_balance_days,platform_diversity,tenure_months,gender,city_tier
+BORROWER_001_LOW_RISK,delivery,28500.0,18200.0,0.16,1.56,0.9,0.96,0.94,92.0,1250.0,0,1,1,18,Male,Tier-2
