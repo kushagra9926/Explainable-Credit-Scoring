@@ -1,0 +1,2 @@
+applicant_id,platform_type,monthly_inflow_avg,monthly_outflow_avg,inflow_volatility,inflow_outflow_ratio,active_days_ratio,utility_punctuality_score,recharge_regularity_index,avg_transaction_value,peak_daily_inflow,emergency_drawdown_count,zero_balance_days,platform_diversity,tenure_months,gender,city_tier
+BORROWER_002_MODERATE_RISK,ride,34000.0,25500.0,0.28,1.33,0.82,0.85,0.82,180.0,1750.0,1,4,2,24,Female,Tier-1

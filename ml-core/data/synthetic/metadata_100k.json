@@ -1,0 +1,29 @@
+{
+  "dataset_name": "Synthetic UPI Gig-Worker & Micro-Merchant 100k Dataset",
+  "num_samples": 100000,
+  "tenure_range_months": "3 to 60 months",
+  "default_rate": 0.12722,
+  "features_count": 19,
+  "columns": [
+    "applicant_id",
+    "platform_type",
+    "monthly_inflow_avg",
+    "monthly_outflow_avg",
+    "inflow_volatility",
+    "inflow_outflow_ratio",
+    "active_days_ratio",
+    "utility_punctuality_score",
+    "recharge_regularity_index",
+    "avg_transaction_value",
+    "peak_daily_inflow",
+    "emergency_drawdown_count",
+    "zero_balance_days",
+    "platform_diversity",
+    "tenure_months",
+    "gender",
+    "city_tier",
+    "default_label",
+    "is_synthetic"
+  ],
+  "disclaimer": "SYNTHETIC DATA GENERATED FOR EXPLAINABLE CREDIT SCORING RESEARCH"
+}

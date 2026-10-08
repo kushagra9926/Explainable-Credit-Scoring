@@ -1,0 +1,2 @@
+applicant_id,platform_type,monthly_inflow_avg,monthly_outflow_avg,inflow_volatility,inflow_outflow_ratio,active_days_ratio,utility_punctuality_score,recharge_regularity_index,avg_transaction_value,peak_daily_inflow,emergency_drawdown_count,zero_balance_days,platform_diversity,tenure_months,gender,city_tier
+BORROWER_003_HIGH_RISK,freelance,52000.0,44000.0,0.58,1.18,0.48,0.62,0.58,3500.0,14000.0,3,9,3,36,Male,Tier-1

@@ -1,0 +1,2 @@
+applicant_id,platform_type,monthly_inflow_avg,monthly_outflow_avg,inflow_volatility,inflow_outflow_ratio,active_days_ratio,utility_punctuality_score,recharge_regularity_index,avg_transaction_value,peak_daily_inflow,emergency_drawdown_count,zero_balance_days,platform_diversity,tenure_months,gender,city_tier
+BORROWER_004_MICRO_VENDOR,vendor,19500.0,18600.0,0.65,1.05,0.42,0.4,0.45,115.0,950.0,4,12,1,12,Female,Tier-3
