@@ -251,13 +251,10 @@ Explainable-Credit-Scoring/
 - The Express backend (authentication and prediction history) is scaffolded but not implemented, and the frontend does not use it yet.
 - Docker configuration is not yet provided.
 
-## Roadmap
+## Future Scope
 
-- Integrate with an Account Aggregator (AA) sandbox, for example under the Sahamati framework
-- Add online learning from streaming transaction data
-- Explore federated learning so multiple banks can train without sharing raw data
-- Complete the Express backend for authentication and scoring history
-
-## Author
-
-**Kushagra** · [GitHub](https://github.com/kushagra9926)
+- **Account Aggregator integration:** connect to an AA sandbox (for example under the Sahamati framework) to ingest consent-based bank statements instead of simulated data
+- **Real-world validation:** evaluate on anonymised data from a partner bank or lender to confirm performance on actual gig workers
+- **Online learning:** update the model continuously from streaming transaction data
+- **Federated learning:** let multiple banks train a shared model without centralising raw customer data
+- **Backend completion:** finish the Express and MongoDB service for authentication and scoring history, and add Docker support
